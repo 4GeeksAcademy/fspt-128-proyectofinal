@@ -223,6 +223,6 @@ class Eventos(db.Model):
     def serialize(self):
         return{
             "nombre_evento":self.nombre_evento,
-            "localizcion":self.localizacion,
+            "localizacion":self.localizacion,
             "tipo_de_evento":self.tipo_de_evento,
         }
