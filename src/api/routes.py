@@ -29,15 +29,17 @@ def registro_profesor():
     name= data.get('name')
     email= data.get('email')
     telephone= data.get('telephone')
-    role= data.get('role')
+    role_id= data.get('role_id')
     password= data.get('password')
 
-    if not name or not email or not telephone or not password or not role:
+    if not name or not email or not telephone or not password or not role_id:
         return jsonify({'msg': 'Por favor completar todos los campos para completar el registro'}), 400
     
-    existing_user = db.session.execute(select(Profesor).where(Profesor.email == email)).scalar_one_or_none()
+    existing_professor = db.session.execute(select(Profesor).where(Profesor.email == email)).scalar_one_or_none()
 
-    if existing_user:
+    if existing_professor:
         return jsonify ({'msg': 'El profesor con este correo electrócnico ya exite'}),409
     
 
+    new_professor= Profesor(name= name, email= email, telephone= telephone, role_id= role_id,)
+    new_professor.set_password(password)
