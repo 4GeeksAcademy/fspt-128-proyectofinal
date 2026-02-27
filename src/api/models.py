@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, Column, Integer, String, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from flask_bcrypt import check_password_hash, generate_password_hash
 import enum
 
 db = SQLAlchemy()
@@ -76,13 +77,22 @@ class Profesor(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=True)
     email: Mapped[str] = mapped_column(String(120), nullable=True)
-    password: Mapped[str] = mapped_column(String(120), nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(120), nullable=True)
     telephone: Mapped[str] = mapped_column(String(120), nullable=True)
 
     
     estudiantes = relationship("Estudiantes", back_populates="profesor")
     eventos = relationship("Eventos", back_populates="profesor")
     aulas = relationship("Aula", back_populates="profesor")
+
+
+
+    def set_password(self,password):
+        self.password_hash = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password_hash, password)
+
 
     def serialize(self):
         return{
