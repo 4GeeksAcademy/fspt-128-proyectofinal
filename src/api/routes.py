@@ -6,7 +6,7 @@ from api.models import db, User
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from api.models import db, User
+from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, Calificaciones
 
 api = Blueprint('api', __name__)
 
@@ -14,161 +14,94 @@ api = Blueprint('api', __name__)
 
 CORS(api)
 
-@api.route('/login', methods=['POST'])
-def login():
-    data = request.json
-
-    if not data.get("email") or not data.get("password"):
-        return jsonify({"msg": "Faltan credenciales"}), 400
-
-    return jsonify({"msg": "Login correcto", "token": "JWT_TOKEN"}), 200
-
-
-@api.route('/register', methods=['POST'])
-def register():
-    data = request.json
-
-    if not data.get("email") or not data.get("password"):
-        return jsonify({"msg": "Datos incompletos"}), 400
-
-    return jsonify({"msg": "Usuario registrado"}), 201
-
-
-@api.route('/logout', methods=['POST'])
-@jwt_required()
-def logout():
-    return jsonify({"msg": "Logout correcto"}), 200
-
-
 @api.route('/events', methods=['POST'])
 @jwt_required()
 def create_event():
     user = get_jwt_identity()
 
-    if user["role"] != "profesor":
+    if user["rol_id"] != 2: 
         return jsonify({"msg": "Solo profesores"}), 403
 
     data = request.json
 
-    if not data.get("title"):
-        return jsonify({"msg": "Falta título"}), 400
+    evento = Eventos(
+        nombre_evento=data.get("nombre_evento"),
+        localizacion=data.get("localizacion"),
+        tipo_de_evento=data.get("tipo_de_evento"),
+        profesor_id=user["id"]
+    )
 
-    return jsonify({"msg": "Evento creado"}), 201
+    db.session.add(evento)
+    db.session.commit()
 
+    return jsonify(evento.serialize()), 201
 
 @api.route('/events', methods=['GET'])
 @jwt_required()
 def get_events():
     user = get_jwt_identity()
 
-    if user["role"] not in ["profesor", "padre"]:
+    if user["rol_id"] not in [2, 3]:
         return jsonify({"msg": "No autorizado"}), 403
 
-    return jsonify({"events": []}), 200
+    eventos = Eventos.query.all()
 
-
-@api.route('/events/<int:event_id>', methods=['PUT'])
-@jwt_required()
-def update_event(event_id):
-    user = get_jwt_identity()
-
-    if user["role"] != "profesor":
-        return jsonify({"msg": "Solo profesores"}), 403
-
-    return jsonify({"msg": f"Evento {event_id} actualizado"}), 200
-
-
-@api.route('/events/<int:event_id>', methods=['DELETE'])
-@jwt_required()
-def delete_event(event_id):
-    user = get_jwt_identity()
-
-    if user["role"] != "profesor":
-        return jsonify({"msg": "Solo profesores"}), 403
-
-    return jsonify({"msg": f"Evento {event_id} eliminado"}), 200
-
+    return jsonify([e.serialize() for e in eventos]), 200
 
 @api.route('/grades', methods=['POST'])
 @jwt_required()
 def create_grade():
     user = get_jwt_identity()
 
-    if user["role"] != "profesor":
+    if user["rol_id"] != 2:
         return jsonify({"msg": "Solo profesores"}), 403
 
     data = request.json
 
-    if not data.get("student_id") or not data.get("grade"):
-        return jsonify({"msg": "Datos incompletos"}), 400
+    grade = Calificaciones(
+        calificacion=data.get("calificacion"),
+        asignatura_id=data.get("asignatura_id"),
+        estudiante_id=data.get("estudiante_id")
+    )
 
-    return jsonify({"msg": "Nota creada"}), 201
+    db.session.add(grade)
+    db.session.commit()
+
+    return jsonify(grade.serialize()), 201
 
 @api.route('/grades/<int:student_id>', methods=['GET'])
 @jwt_required()
 def get_grades(student_id):
     user = get_jwt_identity()
 
-    if user["role"] != "padre":
-        return jsonify({"msg": "Solo padres"}), 403
+    if user["rol_id"] != 3:
+        return jsonify({"msg": "Solo tutores"}), 403
 
-    return jsonify({"grades": []}), 200
+    grades = Calificaciones.query.filter_by(estudiante_id=student_id).all()
 
-@api.route('/grades/<int:grade_id>', methods=['PUT'])
-@jwt_required()
-def update_grade(grade_id):
-    user = get_jwt_identity()
-
-    if user["role"] != "profesor":
-        return jsonify({"msg": "Solo profesores"}), 403
-
-    return jsonify({"msg": f"Nota {grade_id} actualizada"}), 200
-
-@api.route('/grades/<int:grade_id>', methods=['DELETE'])
-@jwt_required()
-def delete_grade(grade_id):
-    user = get_jwt_identity()
-
-    if user["role"] != "profesor":
-        return jsonify({"msg": "Solo profesores"}), 403
-
-    return jsonify({"msg": f"Nota {grade_id} eliminada"}), 200
-
-@api.route('/messages', methods=['POST'])
-@jwt_required()
-def send_message():
-    user = get_jwt_identity()
-
-    if user["role"] not in ["profesor", "padre"]:
-        return jsonify({"msg": "No autorizado"}), 403
-
-    data = request.json
-
-    if not data.get("receiver_id") or not data.get("content"):
-        return jsonify({"msg": "Datos incompletos"}), 400
-
-    return jsonify({"msg": "Mensaje enviado"}), 201
-
-
-@api.route('/messages', methods=['GET'])
-@jwt_required()
-def get_messages():
-    user = get_jwt_identity()
-
-    if user["role"] not in ["profesor", "padre"]:
-        return jsonify({"msg": "No autorizado"}), 403
-
-    return jsonify({"messages": []}), 200
+    return jsonify([g.serialize() for g in grades]), 200
 
 @api.route('/teachers', methods=['POST'])
 @jwt_required()
 def create_teacher():
     user = get_jwt_identity()
 
-    if user["role"] != "admin":
+    if user["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
-    return jsonify({"msg": "Profesor creado"}), 201
+    data = request.json
+
+    teacher = Profesor(
+        name=data.get("name"),
+        email=data.get("email"),
+        password=data.get("password"),
+        telephone=data.get("telephone")
+    )
+
+    db.session.add(teacher)
+    db.session.commit()
+
+    return jsonify(teacher.serialize()), 201
 
 
 @api.route('/teachers', methods=['GET'])
@@ -176,47 +109,86 @@ def create_teacher():
 def get_teachers():
     user = get_jwt_identity()
 
-    if user["role"] != "admin":
+    if user["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
-    return jsonify({"teachers": []}), 200
+    teachers = Profesor.query.all()
+
+    return jsonify([t.serialize() for t in teachers]), 200
 
 @api.route('/students', methods=['POST'])
 @jwt_required()
 def create_student():
     user = get_jwt_identity()
 
-    if user["role"] != "admin":
+    if user["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
-    return jsonify({"msg": "Estudiante creado"}), 201
+    data = request.json
+
+    student = Estudiantes(
+        name=data.get("name"),
+        profesor_id=data.get("profesor_id"),
+        aula_id=data.get("aula_id")
+    )
+
+    db.session.add(student)
+    db.session.commit()
+
+    return jsonify(student.serialize()), 201
+
+
+@api.route('/students', methods=['GET'])
+@jwt_required()
+def get_students():
+    user = get_jwt_identity()
+
+    if user["rol_id"] != 1:
+        return jsonify({"msg": "Solo admin"}), 403
+
+    students = Estudiantes.query.all()
+
+    return jsonify([s.serialize() for s in students]), 200
 
 @api.route('/tutors', methods=['POST'])
 @jwt_required()
 def create_tutor():
     user = get_jwt_identity()
 
-    if user["role"] != "admin":
+    if user["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
-    return jsonify({"msg": "Tutor creado"}), 201
+    data = request.json
+
+    tutor = TutorLegal(
+        name=data.get("name"),
+        email=data.get("email"),
+        password=data.get("password"),
+        telephone=data.get("telephone")
+    )
+
+    db.session.add(tutor)
+    db.session.commit()
+
+    return jsonify(tutor.serialize()), 201
 
 @api.route('/classrooms', methods=['POST'])
 @jwt_required()
 def create_classroom():
     user = get_jwt_identity()
 
-    if user["role"] != "admin":
+    if user["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
-    return jsonify({"msg": "Aula creada"}), 201
+    data = request.json
 
-@api.route('/teacher-list', methods=['GET'])
-@jwt_required()
-def teacher_list():
-    user = get_jwt_identity()
+    classroom = Aula(
+        curso=data.get("curso"),
+        clase=data.get("clase"),
+        profesor_id=data.get("profesor_id")
+    )
 
-    if user["role"] != "admin":
-        return jsonify({"msg": "Solo admin"}), 403
+    db.session.add(classroom)
+    db.session.commit()
 
-    return jsonify({"teacher_list": []}), 200
+    return jsonify(classroom.serialize()), 201
