@@ -1,7 +1,4 @@
 from flask import request, jsonify, Blueprint
-from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db
-from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -155,6 +152,7 @@ def admin_required():
     if get_jwt_identity()["rol_id"] != 1:
         return jsonify({"msg": "Solo admin"}), 403
 
+
 @api.route('/teachers', methods=['POST'])
 @jwt_required()
 def create_teacher():
@@ -166,6 +164,7 @@ def create_teacher():
     db.session.commit()
     return jsonify(teacher.serialize()), 201
 
+
 @api.route('/teachers', methods=['GET'])
 @jwt_required()
 def get_teachers():
@@ -174,6 +173,7 @@ def get_teachers():
 
     teachers = Profesor.query.all()
     return jsonify([t.serialize() for t in teachers]), 200
+
 
 @api.route('/teachers/<int:id>', methods=['DELETE'])
 @jwt_required()
