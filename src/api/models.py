@@ -44,6 +44,12 @@ class SuperAdmin(db.Model):
             "nombre_colegio": self.nombre_colegio,
             "rol_id": self.rol_id
         }
+    
+    def set_password(self,password):
+        self.password = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password,password)
 
 class TutorLegal(db.Model):
     __tablename__ = "tutor_legal"
