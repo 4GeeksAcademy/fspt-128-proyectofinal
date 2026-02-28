@@ -200,7 +200,7 @@ class Calificaciones(db.Model):
             "calificacion_id": self.calificacion_id,
             "calificacion": self.calificacion,
         }
-
+ 
 class tipo_evento(enum.Enum):
     EXCURSION = "excursion"
     EXAMEN = "examen"
