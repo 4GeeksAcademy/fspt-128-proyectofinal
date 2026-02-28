@@ -8,17 +8,22 @@ db = SQLAlchemy()
 evento_estudiantes = Table(
     "evento_estudiantes",
     db.Model.metadata,
-    Column("evento_id", Integer, ForeignKey("eventos.evento_id"), primary_key=True),
-    Column("alumnos_id", Integer, ForeignKey("estudiantes.id"), primary_key=True),
+    Column("evento_id", Integer, ForeignKey(
+        "eventos.evento_id"), primary_key=True),
+    Column("alumnos_id", Integer, ForeignKey(
+        "estudiantes.id"), primary_key=True),
 )
 
 tutor_estudiantes = Table(
     "tutor_estudiantes",
     db.Model.metadata,
-    Column("estudiantes_id", Integer, ForeignKey("estudiantes.id"), primary_key=True),
-    Column("tutor_id", Integer, ForeignKey("tutor_legal.id"), primary_key=True),
+    Column("estudiantes_id", Integer, ForeignKey(
+        "estudiantes.id"), primary_key=True),
+    Column("tutor_id", Integer, ForeignKey(
+        "tutor_legal.id"), primary_key=True),
     Column("parentesco", String(255))
 )
+
 
 class SuperAdmin(db.Model):
     __tablename__ = "super_admin"
@@ -29,12 +34,7 @@ class SuperAdmin(db.Model):
     nombre_colegio: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     rol_id: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
-    aula_id: Mapped[int] = mapped_column(
-        ForeignKey("aula.aula_id"),
-        nullable=True
-    )
-
-    aula = relationship("Aula", back_populates="colegios")
+    aulas = relationship("Aula", back_populates="colegio", foreign_keys="[Aula.colegio_id]")
 
     def serialize(self):
         return {
@@ -69,6 +69,7 @@ class TutorLegal(db.Model):
             "rol_id": self.rol_id
         }
 
+
 class Profesor(db.Model):
     __tablename__ = "profesor"
 
@@ -92,12 +93,13 @@ class Profesor(db.Model):
             "rol_id": self.rol_id
         }
 
+
 class Aula(db.Model):
     __tablename__ = "aula"
 
     aula_id: Mapped[int] = mapped_column(primary_key=True)
     curso: Mapped[str] = mapped_column(String(80), nullable=True)
-    clase: Mapped[str] = mapped_column(String(40), nullable=True)   
+    clase: Mapped[str] = mapped_column(String(40), nullable=True)
 
     profesor_id: Mapped[int] = mapped_column(
         ForeignKey("profesor.id"),
@@ -107,10 +109,10 @@ class Aula(db.Model):
         ForeignKey("super_admin.id"),
         nullable=True
     )
+
     profesor = relationship("Profesor", back_populates="aulas")
-    colegio = relationship("SuperAdmin")
+    colegio = relationship("SuperAdmin", back_populates="aulas", foreign_keys=[colegio_id])
     estudiantes = relationship("Estudiantes", back_populates="aula")
-    colegios = relationship("SuperAdmin", back_populates="aula")
 
     def serialize(self):
         return {
@@ -145,7 +147,8 @@ class Estudiantes(db.Model):
         secondary=tutor_estudiantes,
         back_populates="estudiantes"
     )
-    calificaciones = relationship("Calificaciones", back_populates="estudiante")
+    calificaciones = relationship(
+        "Calificaciones", back_populates="estudiante")
 
     def serialize(self):
         return {
@@ -154,19 +157,22 @@ class Estudiantes(db.Model):
             "profesor_id": self.profesor_id
         }
 
+
 class Asignaturas(db.Model):
     __tablename__ = "asignaturas"
 
     asignatura_id: Mapped[int] = mapped_column(primary_key=True)
     nombre_asignatura: Mapped[str] = mapped_column(String(120), nullable=True)
-    
-    calificaciones = relationship("Calificaciones", back_populates="asignatura")
+
+    calificaciones = relationship(
+        "Calificaciones", back_populates="asignatura")
 
     def serialize(self):
         return {
             "nombre_asignatura": self.nombre_asignatura,
             "asignatura_id": self.asignatura_id,
         }
+
 
 class Calificaciones(db.Model):
     __tablename__ = "calificaciones"
@@ -191,11 +197,13 @@ class Calificaciones(db.Model):
             "calificacion": self.calificacion,
         }
 
+
 class tipo_evento(enum.Enum):
     EXCURSION = "excursion"
     EXAMEN = "examen"
     REUNION = "reunion"
     EVENTO_SOLIDARIO = "evento solidario"
+
 
 class Eventos(db.Model):
     __tablename__ = "eventos"
@@ -203,7 +211,8 @@ class Eventos(db.Model):
     evento_id: Mapped[int] = mapped_column(primary_key=True)
     nombre_evento: Mapped[str] = mapped_column(String(80), nullable=True)
     localizacion: Mapped[str] = mapped_column(String(80), nullable=True)
-    tipo_de_evento: Mapped[tipo_evento] = mapped_column(Enum(tipo_evento), nullable=False)
+    tipo_de_evento: Mapped[tipo_evento] = mapped_column(
+        Enum(tipo_evento), nullable=False)
     profesor_id: Mapped[int] = mapped_column(
         ForeignKey("profesor.id"),
         nullable=True
