@@ -43,3 +43,8 @@ def registro_profesor():
 
     new_professor= Profesor(name= name, email= email, telephone= telephone, role_id= role_id,)
     new_professor.set_password(password)
+
+    db.session.add(new_professor)
+    db.session.commit()
+
+    return jsonify({'msg': 'El perfil del profesor ha sido creado satisfactoriamente'}), 201
