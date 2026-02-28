@@ -1,17 +1,13 @@
 """
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+API Routes - Portal Educativo
 """
-from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, User
-from api.utils import generate_sitemap, APIException
+from flask import request, jsonify, Blueprint
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity
+
 from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, Calificaciones
 
 api = Blueprint('api', __name__)
-
-# Allow CORS requests to this API
-
 CORS(api)
 
 @api.route('/events', methods=['POST'])
@@ -19,7 +15,7 @@ CORS(api)
 def create_event():
     user = get_jwt_identity()
 
-    if user["rol_id"] != 2: 
+    if user["rol_id"] != 2:
         return jsonify({"msg": "Solo profesores"}), 403
 
     data = request.json
@@ -41,7 +37,7 @@ def create_event():
 def get_events():
     user = get_jwt_identity()
 
-    if user["rol_id"] not in [2, 3]:
+    if user["rol_id"] not in [1, 2, 3]:
         return jsonify({"msg": "No autorizado"}), 403
 
     eventos = Eventos.query.all()
@@ -74,8 +70,8 @@ def create_grade():
 def get_grades(student_id):
     user = get_jwt_identity()
 
-    if user["rol_id"] != 3:
-        return jsonify({"msg": "Solo tutores"}), 403
+    if user["rol_id"] not in [2, 3]:
+        return jsonify({"msg": "No autorizado"}), 403
 
     grades = Calificaciones.query.filter_by(estudiante_id=student_id).all()
 
@@ -102,7 +98,6 @@ def create_teacher():
     db.session.commit()
 
     return jsonify(teacher.serialize()), 201
-
 
 @api.route('/teachers', methods=['GET'])
 @jwt_required()
@@ -149,6 +144,29 @@ def get_students():
     students = Estudiantes.query.all()
 
     return jsonify([s.serialize() for s in students]), 200
+
+@api.route('/students/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_student(id):
+    user = get_jwt_identity()
+
+    if user["rol_id"] != 1:
+        return jsonify({"msg": "Solo admin"}), 403
+
+    student = Estudiantes.query.get(id)
+
+    if not student:
+        return jsonify({"msg": "Estudiante no encontrado"}), 404
+
+    data = request.json
+
+    student.name = data.get("name", student.name)
+    student.profesor_id = data.get("profesor_id", student.profesor_id)
+    student.aula_id = data.get("aula_id", student.aula_id)
+
+    db.session.commit()
+
+    return jsonify(student.serialize()), 200
 
 @api.route('/tutors', methods=['POST'])
 @jwt_required()
