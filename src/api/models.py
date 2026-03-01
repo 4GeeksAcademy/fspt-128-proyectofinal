@@ -75,6 +75,11 @@ class TutorLegal(db.Model):
             "telephone": self.telephone,
             "rol_id": self.rol_id
         }
+    def set_password(self,password):
+        self.password = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password,password)
 
 
 class Profesor(db.Model):
@@ -83,7 +88,7 @@ class Profesor(db.Model):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=True)
     email: Mapped[str] = mapped_column(String(120), nullable=True)
-    password_hash: Mapped[str] = mapped_column(String(120), nullable=True)
+    password: Mapped[str] = mapped_column(String(120), nullable=True)
     telephone: Mapped[str] = mapped_column(String(120), nullable=True)
     rol_id: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
 
@@ -94,10 +99,10 @@ class Profesor(db.Model):
 
 
     def set_password(self,password):
-        self.password_hash = generate_password_hash(password).decode('utf-8')
+        self.password = generate_password_hash(password).decode('utf-8')
 
     def check_password(self,password):
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.password, password)
 
 
     def serialize(self):
