@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from flask import Flask, request, jsonify, url_for, Blueprint
-from api.models import db, Profesor, SuperAdmin, TutorLegal
+from api.models import db, Profesor, SuperAdmin, TutorLegal, Calificaciones,Estudiantes
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 from sqlalchemy import select
@@ -121,6 +121,96 @@ def perfil_profesor():
     return jsonify(existing_user.serialize()),200
 
 
+@api.route('calificaciones/crear', methods=['POST'])
+@jwt_required()
+def crear_calificaciones():
+    existing_user_id= get_jwt_identity()
+    existing_user= db.session.get(Profesor,int(existing_user_id))
+
+    if not existing_user:
+        return jsonify({"msg":"Usuario no autorizado"}),401
+    
+    data= request.get_json()
+
+    if not data:
+        return jsonify({"msg":"Datos Inválidos"}),400
+    
+    estudiante_id= data.get("estudiante_id")
+    estudiante= db.session.get(Estudiantes,estudiante_id)
+
+    if not estudiante:
+        return jsonify({"msg": "Estudiante no encontrado"}), 404
+    
+    if estudiante.existing_user_id != existing_user:
+        return jsonify ({"msg": "Este estudiante no es tuyo, no puedes modificarlo"}), 404
+        
+    
+    nueva_calificacion= Calificaciones(
+        calificacion= data.get("calificacion"),
+        estudiante_id=data.get("estudiante_id"),
+        asignatura_id=data.get("asignatura_id")
+    )
+
+    db.session.add(nueva_calificacion)
+    db.session.commit()
+
+    return jsonify(nueva_calificacion.serialize()),201
+
+
+
+
+@api.route('calificaciones/editar/<int:calificacion_id>', methods=['PUT'])
+@jwt_required()
+def editar_calificaciones(calificacion_id):
+    existing_user_id= get_jwt_identity()
+    existing_user = db.session.get(Calificaciones,int(existing_user_id))
+    if not existing_user:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+    
+    calificacion= db.session.get(Calificaciones, calificacion_id)
+
+    if not calificacion:
+        return jsonify({'msg':'Calificaion no encontrada'}),404
+    
+    data= request.get_json()
+
+    if "calificacion" in data:
+        calificacion.calificacion_id= data["calificacion"]
+
+    if "estudiante_id" in data:
+        calificacion.estudiante_id=data["estudiante_id"]
+
+    if "asignatura_id" in data:
+        calificacion.asignatura_id=data["asignatura_id"]
+
+    db.session.commit()
+
+    return jsonify(calificacion.serialize()),200
+
+
+@api.route('calificaciones/eliminar/<int:calificacion_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_calificaciones(calificacion_id):
+     existing_user_id= get_jwt_identity()
+     existing_user = db.session.get(Calificaciones,int(existing_user_id))
+
+     if not existing_user:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+    
+     calificacion= db.session.get(Calificaciones, calificacion_id)
+
+     if not calificacion:
+        return jsonify({'msg':'Calificaion no encontrada'}),404
+    
+     db.session.delete(calificacion)
+     db.session.commit()
+
+     return jsonify({"msg":"la calificación ha sido eliminada exitosamente"}),200
+
+    
+
+
+
 @api.route('tutorlegal/login',methods=['POST'])
 def login_tutor_legal():
     data= request.get_json()
@@ -156,30 +246,30 @@ def perfil_tutorlegal():
 
 
     #use una ruta de registro para probar el login (por eso está comentada)
-# @api.route('tutorlegal/registro', methods=['POST'])
-# def registro_tutorlegal():
-#     data= request.get_json()
-#     name=data.get('name')
-#     email= data.get('email')
-#     rol_id= data.get('rol_id')
-#     telephone= data.get('telephone')
-#     password= data.get('password')
+@api.route('profesor/registro', methods=['POST'])
+def registro_tutorlegal():
+    data= request.get_json()
+    name=data.get('name')
+    email= data.get('email')
+    rol_id= data.get('rol_id')
+    telephone= data.get('telephone')
+    password= data.get('password')
   
 
-#     if  not email or not password or not rol_id or not name or not telephone:
-#         return jsonify({'msg': 'Por favor completar todos los campos para completar el registro'}), 400
+    if  not email or not password or not rol_id or not name or not telephone:
+        return jsonify({'msg': 'Por favor completar todos los campos para completar el registro'}), 400
     
-#     existing_user= db.session.execute(select(TutorLegal).where(TutorLegal.email == email)).scalar_one_or_none()
+    existing_user= db.session.execute(select(Profesor).where(Profesor.email == email)).scalar_one_or_none()
 
-#     if existing_user:
-#         return jsonify ({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}),409
-    
-
-#     new_user= TutorLegal(email= email, rol_id= rol_id,password= password,name=name, telephone= telephone)
-#     new_user.set_password(password)
+    if existing_user:
+        return jsonify ({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}),409
     
 
-#     db.session.add(new_user)
-#     db.session.commit()
+    new_user= Profesor(email= email, rol_id= rol_id,password= password,name=name, telephone= telephone)
+    new_user.set_password(password)
+    
 
-#     return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
