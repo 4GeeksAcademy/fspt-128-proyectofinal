@@ -307,3 +307,16 @@ def create_classroom():
     db.session.commit()
     return jsonify(classroom.serialize()), 201
 
+@api.route('/classrooms/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_classroom(id):
+    admin_check = admin_required()
+    if admin_check: return admin_check
+
+    classroom = Aula.query.get(id)
+    if not classroom:
+        return jsonify({"msg": "Aula no encontrada"}), 404
+
+    db.session.delete(classroom)
+    db.session.commit()
+    return jsonify({"msg": "Aula eliminada"}), 200
