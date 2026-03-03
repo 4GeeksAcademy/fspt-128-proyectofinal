@@ -140,6 +140,8 @@ class Aula(db.Model):
             "aula_id": self.aula_id,
             "curso": self.curso,
             "clase": self.clase,
+            "profesor_id": self.profesor_id,
+            "estudiantes": [estudiante.serialize() for estudiante in self.estudiantes]
         }
 
 class Estudiantes(db.Model):
