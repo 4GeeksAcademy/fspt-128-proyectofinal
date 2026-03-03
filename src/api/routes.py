@@ -178,6 +178,8 @@ def create_teacher():
     db.session.commit()
     return jsonify(teacher.serialize()), 201
 
+
+
 @api.route('/teachers', methods=['GET'])
 @jwt_required()
 def get_teachers():
@@ -289,34 +291,68 @@ def update_tutor(id):
     return jsonify(tutor.serialize()), 200
 
 #AULAS#
-@api.route('/classrooms', methods=['POST'])
-@jwt_required()
-def create_classroom():
-    admin_check = admin_required()
-    if admin_check: return admin_check
+# @api.route('/crear/aula', methods=['POST'])
+# @jwt_required()
+# def crear_aula():
+#     admin_check = admin_required()
+#     if admin_check: return admin_check
 
-    data = request.json
-    classroom = Aula(
-        curso=data.get("curso"),
-        clase=data.get("clase"),
-        profesor_id=data.get("profesor_id"),
-        colegio_id=data.get("colegio_id")
-    )
+#     data = request.json
+    
+#     if not data.get ("profesor_id") or not data.get("estudiantes"):
+#         return jsonify({"msg": "Profesor y estudiantes requeridos"}), 400
+    
+#     classroom = Aula(
+#         curso=data.get("curso"),
+#         clase=data.get("clase"),
+#         profesor_id=data.get("profesor_id"),
+#         colegio_id=data.get("colegio_id")
+#     )
 
-    db.session.add(classroom)
-    db.session.commit()
-    return jsonify(classroom.serialize()), 201
+#     db.session.add(classroom)
+#     db.session.commit()
+#     return jsonify(classroom.serialize()), 201
 
-@api.route('/classrooms/<int:id>', methods=['DELETE'])
-@jwt_required()
-def delete_classroom(id):
-    admin_check = admin_required()
-    if admin_check: return admin_check
+# @api.route('/eliminar/aula/<int:id>/<string:clase>', methods=['DELETE'])
+# @jwt_required()
+# def eliminar_aula(id, clase):
+   
+#     admin_check = admin_required()
+#     if admin_check: 
+#         return admin_check
 
-    classroom = Aula.query.get(id)
-    if not classroom:
-        return jsonify({"msg": "Aula no encontrada"}), 404
+#     aula = Aula.query.filter_by(aula_id=id, clase=clase).first()
+    
+#     if not aula:
+#         return jsonify({
+#             "msg": "No se encontró un aula con ese ID y nombre de clase coincidentes."
+#         }), 404
 
-    db.session.delete(classroom)
-    db.session.commit()
-    return jsonify({"msg": "Aula eliminada"}), 200
+  
+#     if aula.profesor_id is not None or len(aula.estudiantes) > 0:
+#         return jsonify({
+#             "msg": "No se puede eliminar: El aula debe estar totalmente vacía, asigne a los profesor/alumnos antes a otras aulas.",
+#             "detalles": {
+#                 "profesor_asignado": aula.profesor_id is not None,
+#                 "alumnos_inscritos": len(aula.estudiantes)
+#             }
+#         }), 400
+
+    
+#     try:
+#         db.session.delete(aula)
+#         db.session.commit()
+#         return jsonify({"msg": f"Aula '{clase}' (ID: {id}) eliminada con éxito"}), 200
+    
+#     except Exception as e:
+#         db.session.rollback()
+#         return jsonify({
+#             "msg": "Error inesperado al eliminar",
+#             "error": str(e)
+#         }), 500
+
+# @api.route('/aulas', methods=['GET'])
+# def obtener_aulas():
+ 
+#     aulas = Aula.query.all()
+#     return jsonify([aula.serialize() for aula in aulas]), 200
