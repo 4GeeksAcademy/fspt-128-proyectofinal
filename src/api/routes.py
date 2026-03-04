@@ -13,11 +13,36 @@ from flask import request, jsonify, Blueprint
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from sqlalchemy import select
+"""
+This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+"""
+from flask import Flask, request, jsonify, url_for, Blueprint
+from api.models import db, Profesor, SuperAdmin, TutorLegal
+from api.utils import generate_sitemap, APIException
+from flask_cors import CORS
+from sqlalchemy import select
+from flask_jwt_extended import create_access_token , get_jwt_identity,jwt_required
+from flask_bcrypt import generate_password_hash,check_password_hash
+
+
 
 from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
 
 api = Blueprint('api', __name__)
 CORS(api)
+
+from flask_jwt_extended import JWTManager
+from flask import current_app
+
+jwt = JWTManager()
+
+@api.record_once
+def init_jwt(setup_state):
+    app = setup_state.app
+    app.config.setdefault("JWT_SECRET_KEY", "super-secret-key")
+    app.config.setdefault("JWT_TOKEN_LOCATION", ["headers"])
+    jwt.init_app(app)
+
 
 def admin_required():
     user = get_jwt_identity()
@@ -91,7 +116,7 @@ def login_superadmin():
 
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
-@api.route('perfil/superadmin', methods=['GET'])
+@api.route('/perfil/superadmin', methods=['GET'])
 @jwt_required()
 def perfil_superadmin():
     user = get_jwt_identity()
@@ -320,6 +345,10 @@ def create_classroom():
 
     return jsonify(response_body), 200
 
+
+
+
+@api.route('/profesor/login',methods=['POST'])
 #el rol debe agregarse al modelo del profesor 
 @api.route('/superadmin/registro', methods=['POST'])
 def registro_superadmin():
@@ -406,6 +435,7 @@ def login_profesor():
         return jsonify({'msg':'El correo eletrócnico o contraseña son incorrectos'}), 401
      
 
+@api.route('/perfil/profesor', methods=['GET'])
 @api.route('perfil/profesor', methods=['GET'])
 @jwt_required()
 def perfil_profesor():
@@ -416,6 +446,7 @@ def perfil_profesor():
     return jsonify(existing_user.serialize()),200
 
 
+@api.route('/tutorlegal/login',methods=['POST'])
 @api.route('tutorlegal/login',methods=['POST'])
 def login_tutor_legal():
     data= request.get_json()
@@ -438,6 +469,7 @@ def login_tutor_legal():
         return jsonify({'msg':'El correo eletrócnico o contraseña son incorrectos'}), 401
 
 
+@api.route('/perfil/tutorlegal', methods=['GET'])
 @api.route('perfil/tutorlegal', methods=['GET'])
 @jwt_required()
 def perfil_tutorlegal():
@@ -451,6 +483,8 @@ def perfil_tutorlegal():
 
 
     #use una ruta de registro para probar el login (por eso está comentada)
+ @api.route('tutorlegal/registro', methods=['POST'])
+  def registro_tutorlegal():
 # @api.route('tutorlegal/registro', methods=['POST'])
 # def registro_tutorlegal():
 #     data= request.get_json()
@@ -478,3 +512,38 @@ def perfil_tutorlegal():
 #     db.session.commit()
 
 #     return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+
+@api.route('/students/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_student(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+    student = Estudiantes.query.get(id)
+    if not student:
+        return jsonify({"msg": "Estudiante no encontrado"}), 404
+
+    data = request.json
+
+    student.name = data.get("name", student.name)
+    student.profesor_id = data.get("profesor_id", student.profesor_id)
+    student.aula_id = data.get("aula_id", student.aula_id)
+
+    db.session.commit()
+    return jsonify(student.serialize()), 200
+
+@api.route('/tutors/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_tutor(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+    tutor = TutorLegal.query.get(id)
+    if not tutor:
+        return jsonify({"msg": "Tutor no encontrado"}), 404
+
+    db.session.delete(tutor)
+    db.session.commit()
+    return jsonify({"msg": "Tutor eliminado"}), 200
