@@ -2,11 +2,36 @@ from flask import request, jsonify, Blueprint
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
 from sqlalchemy import select
+"""
+This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+"""
+from flask import Flask, request, jsonify, url_for, Blueprint
+from api.models import db, Profesor, SuperAdmin, TutorLegal
+from api.utils import generate_sitemap, APIException
+from flask_cors import CORS
+from sqlalchemy import select
+from flask_jwt_extended import create_access_token , get_jwt_identity,jwt_required
+from flask_bcrypt import generate_password_hash,check_password_hash
+
+
 
 from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
 
 api = Blueprint('api', __name__)
 CORS(api)
+
+from flask_jwt_extended import JWTManager
+from flask import current_app
+
+jwt = JWTManager()
+
+@api.record_once
+def init_jwt(setup_state):
+    app = setup_state.app
+    app.config.setdefault("JWT_SECRET_KEY", "super-secret-key")
+    app.config.setdefault("JWT_TOKEN_LOCATION", ["headers"])
+    jwt.init_app(app)
+
 
 def admin_required():
     user = get_jwt_identity()
@@ -80,7 +105,7 @@ def login_superadmin():
 
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
-@api.route('perfil/superadmin', methods=['GET'])
+@api.route('/perfil/superadmin', methods=['GET'])
 @jwt_required()
 def perfil_superadmin():
     user = get_jwt_identity()
@@ -307,3 +332,137 @@ def create_classroom():
     db.session.commit()
     return jsonify(classroom.serialize()), 201
 
+    return jsonify(response_body), 200
+
+
+
+
+@api.route('/profesor/login',methods=['POST'])
+def login_profesor():
+     data= request.get_json()
+     email= data.get('email')
+     password= data.get('password')
+
+     if  not email or not password:
+        return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
+    
+     existing_user= db.session.execute(select(Profesor).where(Profesor.email == email)).scalar_one_or_none()
+
+     if existing_user is None:
+        return jsonify ({'msg':'El correo eletrócnico o contraseña son incorrectos'}),401
+    
+     if existing_user.check_password(password):
+         access_token = create_access_token(identity=str(existing_user.id))
+         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}),200
+    
+     else: 
+        return jsonify({'msg':'El correo eletrócnico o contraseña son incorrectos'}), 401
+     
+
+@api.route('/perfil/profesor', methods=['GET'])
+@jwt_required()
+def perfil_profesor():
+    existing_user_id= get_jwt_identity()
+    existing_user = db.session.get(Profesor,int(existing_user_id))
+    if not existing_user:
+        return jsonify({"msg":"Usuario no encontrado"}),400
+    return jsonify(existing_user.serialize()),200
+
+
+@api.route('/tutorlegal/login',methods=['POST'])
+def login_tutor_legal():
+    data= request.get_json()
+    email= data.get('email')
+    password= data.get('password')
+
+    if  not email or not password:
+        return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
+    
+    existing_user= db.session.execute(select(TutorLegal).where(TutorLegal.email == email)).scalar_one_or_none()
+
+    if existing_user is None:
+        return jsonify ({'msg':'El correo eletrócnico o contraseña son incorrectos'}),401
+    
+    if existing_user.check_password(password):
+         access_token = create_access_token(identity=str(existing_user.id))
+         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}),200
+    
+    else: 
+        return jsonify({'msg':'El correo eletrócnico o contraseña son incorrectos'}), 401
+
+
+@api.route('/perfil/tutorlegal', methods=['GET'])
+@jwt_required()
+def perfil_tutorlegal():
+    existing_user_id= get_jwt_identity()
+    existing_user = db.session.get(TutorLegal,int(existing_user_id))
+    if not existing_user:
+        return jsonify({"msg":"Usuario no encontrado"}),400
+    return jsonify(existing_user.serialize()),200
+
+    
+
+
+    #use una ruta de registro para probar el login (por eso está comentada)
+ @api.route('tutorlegal/registro', methods=['POST'])
+  def registro_tutorlegal():
+#     data= request.get_json()
+#     name=data.get('name')
+#     email= data.get('email')
+#     rol_id= data.get('rol_id')
+#     telephone= data.get('telephone')
+#     password= data.get('password')
+  
+
+#     if  not email or not password or not rol_id or not name or not telephone:
+#         return jsonify({'msg': 'Por favor completar todos los campos para completar el registro'}), 400
+    
+#     existing_user= db.session.execute(select(TutorLegal).where(TutorLegal.email == email)).scalar_one_or_none()
+
+#     if existing_user:
+#         return jsonify ({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}),409
+    
+
+#     new_user= TutorLegal(email= email, rol_id= rol_id,password= password,name=name, telephone= telephone)
+#     new_user.set_password(password)
+    
+
+#     db.session.add(new_user)
+#     db.session.commit()
+
+#     return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+
+@api.route('/students/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_student(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+    student = Estudiantes.query.get(id)
+    if not student:
+        return jsonify({"msg": "Estudiante no encontrado"}), 404
+
+    data = request.json
+
+    student.name = data.get("name", student.name)
+    student.profesor_id = data.get("profesor_id", student.profesor_id)
+    student.aula_id = data.get("aula_id", student.aula_id)
+
+    db.session.commit()
+    return jsonify(student.serialize()), 200
+
+@api.route('/tutors/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_tutor(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+    tutor = TutorLegal.query.get(id)
+    if not tutor:
+        return jsonify({"msg": "Tutor no encontrado"}), 404
+
+    db.session.delete(tutor)
+    db.session.commit()
+    return jsonify({"msg": "Tutor eliminado"}), 200
