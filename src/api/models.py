@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, Column, Integer, String, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from flask_bcrypt import check_password_hash, generate_password_hash
 import enum
 
 db = SQLAlchemy()
@@ -43,6 +44,12 @@ class SuperAdmin(db.Model):
             "nombre_colegio": self.nombre_colegio,
             "rol_id": self.rol_id
         }
+    
+    def set_password(self,password):
+        self.password = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password,password)
 
 class TutorLegal(db.Model):
     __tablename__ = "tutor_legal"
@@ -68,6 +75,11 @@ class TutorLegal(db.Model):
             "telephone": self.telephone,
             "rol_id": self.rol_id
         }
+    def set_password(self,password):
+        self.password = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password,password)
 
 
 class Profesor(db.Model):
@@ -83,6 +95,15 @@ class Profesor(db.Model):
     estudiantes = relationship("Estudiantes", back_populates="profesor")
     eventos = relationship("Eventos", back_populates="profesor")
     aulas = relationship("Aula", back_populates="profesor")
+
+
+
+    def set_password(self,password):
+        self.password = generate_password_hash(password).decode('utf-8')
+
+    def check_password(self,password):
+        return check_password_hash(self.password, password)
+
 
     def serialize(self):
         return {
@@ -119,6 +140,8 @@ class Aula(db.Model):
             "aula_id": self.aula_id,
             "curso": self.curso,
             "clase": self.clase,
+            "profesor_id": self.profesor_id,
+            "estudiantes": [estudiante.serialize() for estudiante in self.estudiantes]
         }
 
 class Estudiantes(db.Model):
