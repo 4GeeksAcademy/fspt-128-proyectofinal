@@ -1,12 +1,17 @@
-from flask import request, jsonify, Blueprint
-from flask_cors import CORS
-from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
-from sqlalchemy import select
-
+"""
+This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+"""
+from flask import Flask, request, jsonify, url_for, Blueprint
 from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
+from api.utils import generate_sitemap, APIException
+from flask_cors import CORS
+from sqlalchemy import select
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+
 
 api = Blueprint('api', __name__)
 CORS(api)
+
 
 def admin_required():
     user = get_jwt_identity()
@@ -14,7 +19,9 @@ def admin_required():
         return jsonify({"msg": "Solo admin"}), 403
     return None
 
-#SUPERADMIN REGISTRO, LOGIN Y GET#
+# SUPERADMIN REGISTRO, LOGIN Y GET#
+
+
 @api.route('/superadmin/registro', methods=['POST'])
 def registro_superadmin():
     data = request.get_json()
@@ -44,6 +51,7 @@ def registro_superadmin():
     db.session.add(new_user)
     db.session.commit()
     return jsonify({'msg': 'Administrador creado correctamente'}), 200
+
 
 @api.route('/superadmin/login', methods=['POST'])
 def login_superadmin():
@@ -80,6 +88,7 @@ def login_superadmin():
 
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
+
 @api.route('perfil/superadmin', methods=['GET'])
 @jwt_required()
 def perfil_superadmin():
@@ -91,18 +100,23 @@ def perfil_superadmin():
 
     return jsonify(existing_user.serialize()), 200
 
-#CERRAR SESION#
+# CERRAR SESION#
+
+
 @api.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
     return jsonify({"msg": "Logout correcto"}), 200
 
-#EVENTOS#
+# EVENTOS#
+
+
 @api.route('/events', methods=['GET'])
 @jwt_required()
 def get_events():
     eventos = Eventos.query.all()
     return jsonify([e.serialize() for e in eventos]), 200
+
 
 @api.route('/events/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -122,6 +136,7 @@ def update_event(id):
     db.session.commit()
     return jsonify(evento.serialize()), 200
 
+
 @api.route('/events/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_event(id):
@@ -137,7 +152,7 @@ def delete_event(id):
     db.session.commit()
     return jsonify({"msg": "Evento eliminado"}), 200
 
-#mensajeria#
+# mensajeria#
 # @api.route('/messages', methods=['POST'])
 # @jwt_required()
 # def send_message():
@@ -158,42 +173,49 @@ def delete_event(id):
 #     if get_jwt_identity()["rol_id"] != 1:
 #         return jsonify({"msg": "Solo admin"}), 403
 
-#PROFESORES#
-@api.route('/teachers', methods=['POST'])
+# PROFESORES#
+
+@api.route('profesor/login', methods=['POST'])
+def login_profesor():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
+
+    existing_user = db.session.execute(select(Profesor).where(
+        Profesor.email == email)).scalar_one_or_none()
+
+    if existing_user is None:
+        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+
+    if existing_user.check_password(password):
+        access_token = create_access_token(identity=str(existing_user.id))
+        return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
+
+    else:
+        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+
+
+@api.route('perfil/profesor', methods=['GET'])
 @jwt_required()
-def create_teacher():
-    admin_check = admin_required()
-    if admin_check: return admin_check
-
-    data = request.json
-    teacher = Profesor(
-        name=data.get("name"),
-        email=data.get("email"),
-        password=data.get("password"),
-        telephone=data.get("telephone"),
-        rol_id=data.get("rol_id")
-    )
-
-    db.session.add(teacher)
-    db.session.commit()
-    return jsonify(teacher.serialize()), 201
+def perfil_profesor():
+    existing_user_id = get_jwt_identity()
+    existing_user = db.session.get(Profesor, int(existing_user_id))
+    if not existing_user:
+        return jsonify({"msg": "Usuario no encontrado"}), 400
+    return jsonify(existing_user.serialize()), 200
 
 
 
-@api.route('/teachers', methods=['GET'])
-@jwt_required()
-def get_teachers():
-    admin_check = admin_required()
-    if admin_check: return admin_check
-
-    teachers = Profesor.query.all()
-    return jsonify([t.serialize() for t in teachers]), 200
 
 @api.route('/teachers/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_teacher(id):
     admin_check = admin_required()
-    if admin_check: return admin_check
+    if admin_check:
+        return admin_check
 
     teacher = Profesor.query.get(id)
     if not teacher:
@@ -206,11 +228,13 @@ def update_teacher(id):
     db.session.commit()
     return jsonify(teacher.serialize()), 200
 
+
 @api.route('/teachers/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_teacher(id):
     admin_check = admin_required()
-    if admin_check: return admin_check
+    if admin_check:
+        return admin_check
 
     teacher = Profesor.query.get(id)
     if not teacher:
@@ -220,12 +244,14 @@ def delete_teacher(id):
     db.session.commit()
     return jsonify({"msg": "Profesor eliminado"}), 200
 
-#ESTUDIANTES#
+# ESTUDIANTES#
+
+
 @api.route('/students', methods=['POST'])
 @jwt_required()
 def create_student():
     admin_check = admin_required()
-    if admin_check: 
+    if admin_check:
         return admin_check
 
     data = request.json
@@ -239,11 +265,13 @@ def create_student():
     db.session.commit()
     return jsonify(student.serialize()), 201
 
+
 @api.route('/students/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_student(id):
     admin_check = admin_required()
-    if admin_check: return admin_check
+    if admin_check:
+        return admin_check
 
     student = Estudiantes.query.get(id)
     if not student:
@@ -253,12 +281,16 @@ def delete_student(id):
     db.session.commit()
     return jsonify({"msg": "Estudiante eliminado"}), 200
 
-#TUTOR LEGAL#
+# TUTOR LEGAL#
+
+
+
 @api.route('/tutors', methods=['POST'])
 @jwt_required()
 def create_tutor():
     admin_check = admin_required()
-    if admin_check: return admin_check
+    if admin_check:
+        return admin_check
 
     data = request.json
     tutor = TutorLegal(
@@ -273,11 +305,13 @@ def create_tutor():
     db.session.commit()
     return jsonify(tutor.serialize()), 201
 
+
 @api.route('/tutors/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_tutor(id):
     admin_check = admin_required()
-    if admin_check: return admin_check
+    if admin_check:
+        return admin_check
 
     tutor = TutorLegal.query.get(id)
     if not tutor:
@@ -290,69 +324,34 @@ def update_tutor(id):
     db.session.commit()
     return jsonify(tutor.serialize()), 200
 
-#AULAS#
-# @api.route('/crear/aula', methods=['POST'])
-# @jwt_required()
-# def crear_aula():
-#     admin_check = admin_required()
-#     if admin_check: return admin_check
+# AULAS#
 
-#     data = request.json
-    
-#     if not data.get ("profesor_id") or not data.get("estudiantes"):
-#         return jsonify({"msg": "Profesor y estudiantes requeridos"}), 400
-    
-#     classroom = Aula(
-#         curso=data.get("curso"),
-#         clase=data.get("clase"),
-#         profesor_id=data.get("profesor_id"),
-#         colegio_id=data.get("colegio_id")
-#     )
 
-#     db.session.add(classroom)
-#     db.session.commit()
-#     return jsonify(classroom.serialize()), 201
+@api.route('/classrooms', methods=['POST'])
+@jwt_required()
+def create_classroom():
+    admin_check = admin_required()
+    if admin_check:
+        return admin_check
 
-# @api.route('/eliminar/aula/<int:id>/<string:clase>', methods=['DELETE'])
-# @jwt_required()
-# def eliminar_aula(id, clase):
-   
-#     admin_check = admin_required()
-#     if admin_check: 
-#         return admin_check
+    data = request.json
+    classroom = Aula(
+        curso=data.get("curso"),
+        clase=data.get("clase"),
+        profesor_id=data.get("profesor_id"),
+        colegio_id=data.get("colegio_id")
+    )
 
-#     aula = Aula.query.filter_by(aula_id=id, clase=clase).first()
-    
-#     if not aula:
-#         return jsonify({
-#             "msg": "No se encontró un aula con ese ID y nombre de clase coincidentes."
-#         }), 404
+    db.session.add(classroom)
+    db.session.commit()
+    return jsonify(classroom.serialize()), 201
 
-  
-#     if aula.profesor_id is not None or len(aula.estudiantes) > 0:
-#         return jsonify({
-#             "msg": "No se puede eliminar: El aula debe estar totalmente vacía, asigne a los profesor/alumnos antes a otras aulas.",
-#             "detalles": {
-#                 "profesor_asignado": aula.profesor_id is not None,
-#                 "alumnos_inscritos": len(aula.estudiantes)
-#             }
-#         }), 400
 
-    
-#     try:
-#         db.session.delete(aula)
-#         db.session.commit()
-#         return jsonify({"msg": f"Aula '{clase}' (ID: {id}) eliminada con éxito"}), 200
-    
-#     except Exception as e:
-#         db.session.rollback()
-#         return jsonify({
-#             "msg": "Error inesperado al eliminar",
-#             "error": str(e)
-#         }), 500
 
-# @api.route('/aulas', methods=['GET'])
-# def obtener_aulas():
- 
-#     aulas = Aula.query.all()
-#     return jsonify([aula.serialize() for aula in aulas]), 200
+
+
+
+
+
+
+
