@@ -4,7 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_tok
 from sqlalchemy import select
 
 
-from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
+from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin, Asignaturas
 
 api = Blueprint('api', __name__)
 CORS(api)
@@ -20,6 +20,12 @@ def profe_required():
     user = Profesor.query.get(user_id)
     if not user or user.rol_id != 2:
         return jsonify({"msg": "Solo profesor"}), 403
+    return None
+def tutorLegal_required():
+    user_id = get_jwt_identity()
+    user = TutorLegal.query.get(user_id)
+    if not user or user.rol_id != 3:
+        return jsonify({"msg": "Solo tutor legal"}), 403
     return None
 
 #SUPERADMIN REGISTRO, LOGIN Y GET#
@@ -187,6 +193,7 @@ def create_teacher():
 
 @api.route('/profesor/login',methods=['POST'])
 def login_profesor():
+    
     data= request.get_json()
     email= data.get('email')
     password= data.get('password')
@@ -205,6 +212,9 @@ def login_profesor():
             additional_claims={
                 "rol_id": existing_user.rol_id,
                 "email": existing_user.email,
+                "aula_id": Aula.aula_id,
+                "curso": Aula.curso,
+                "clase": Aula.clase
             }
         )
 
@@ -334,12 +344,7 @@ def crear_aula():
     admin_check = profe_required()
     if admin_check: return admin_check
 
-    
-
-    data = request.json
-    
-
-    
+    data = request.json    
     classroom = Aula(
         curso=data.get("curso"),
         clase=data.get("clase"),
@@ -420,3 +425,75 @@ def actualizar_aula(id):
 
     db.session.commit()
     return jsonify({"msg": "Aula actualizada", "aula": aula.serialize()}), 200
+
+
+# asignaturas
+
+@api.route('/asignaturas', methods=['POST'])
+@jwt_required()
+def create_asignatura():
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+    data = request.get_json()
+    nueva = Asignaturas(nombre_asignatura=data.get('nombre_asignatura'))
+    db.session.add(nueva)
+    db.session.commit()
+    return jsonify({"msg": "Asignatura troncal creada"}), 201
+
+
+@api.route('/asignaturas/<int:id>', methods=['PUT'])
+@jwt_required()
+def update_asignatura(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+
+   
+    asignatura = db.session.get(Asignaturas, id)
+    
+    if not asignatura:
+        return jsonify({"msg": "La asignatura no existe"}), 404
+
+    
+    data = request.get_json()
+    nuevo_nombre = data.get('nombre_asignatura')
+
+    if not nuevo_nombre:
+        return jsonify({"msg": "El nuevo nombre de la asignatura es requerido"}), 400
+
+    
+    asignatura.nombre_asignatura = nuevo_nombre
+    db.session.commit()
+
+    return jsonify({
+        "msg": "Asignatura actualizada correctamente",
+        "asignatura": asignatura.serialize()
+    }), 200
+
+
+
+@api.route('/asignaturas/<int:id>', methods=['DELETE'])
+@jwt_required()
+def delete_asignatura(id):
+    admin_check = admin_required()
+    if admin_check: 
+        return admin_check
+    
+    asignatura = db.session.get(Asignaturas, id)
+    if not asignatura:
+        return jsonify({"msg": "No existe"}), 404
+    
+    db.session.delete(asignatura)
+    db.session.commit()
+    return jsonify({"msg": "Asignatura eliminada globalmente"}), 200
+
+@api.route('/asignaturas', methods=['GET'])
+@jwt_required()
+def get_asignaturas():
+    
+    result = db.session.execute(select(Asignaturas)).scalars().all()
+    asignaturas_list = [asignatura.serialize() for asignatura in result]
+
+    return jsonify(asignaturas_list), 200
