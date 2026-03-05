@@ -13,7 +13,6 @@ from flask import Flask, request, jsonify, url_for, Blueprint
 api = Blueprint('api', __name__)
 CORS(api)
 
-
 def admin_required():
     user = get_jwt_identity()
     if not user or user.get("rol_id") != 1:
@@ -82,8 +81,7 @@ def login_superadmin():
         }), 200
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
-
-@api.route('perfil/superadmin', methods=['GET'])
+@api.route('/perfil/superadmin', methods=['GET'])
 @jwt_required()
 def perfil_superadmin():
     user = get_jwt_identity()
@@ -363,7 +361,7 @@ def login_tutor_legal():
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
 
 
-@api.route('perfil/tutorlegal', methods=['GET'])
+@api.route('/perfil/tutorlegal', methods=['GET'])
 @jwt_required()
 def perfil_tutorlegal():
     existing_user_id = get_jwt_identity()
