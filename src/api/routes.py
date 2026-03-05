@@ -390,7 +390,8 @@ def registro_tutorlegal():
    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
 
 
-# ESTOS ENDPOINTS ESTAN COMENTADOS PORQUE AUN NO LOS HE COMPROBADO EN POSTMAN
+
+# ESTOS ENDPOINTS SON PARA CREAR, MODIFICAR Y ELIMINAR
 @api.route('calificaciones/crear', methods=['POST'])
 @jwt_required()
 def crear_calificaciones():
@@ -430,7 +431,7 @@ def crear_calificaciones():
 
 
 
-
+#EDITAR TAREA
 @api.route('calificaciones/editar/<int:calificacion_id>', methods=['PUT'])
 @jwt_required()
 def editar_calificaciones(calificacion_id):
@@ -471,7 +472,7 @@ def editar_calificaciones(calificacion_id):
 
     return jsonify(calificacion.serialize()),200
 
-
+#ELIMINAR TAREA
 @api.route('calificaciones/eliminar/<int:calificacion_id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_calificaciones(calificacion_id):
@@ -503,3 +504,17 @@ def eliminar_calificaciones(calificacion_id):
      db.session.commit()
 
      return jsonify({"msg":"la calificación ha sido eliminada exitosamente"}),200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
