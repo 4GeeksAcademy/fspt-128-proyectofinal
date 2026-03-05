@@ -28,7 +28,7 @@ export const LandingPagePT = () => {
               <button 
                 className="btn btn-lg px-5 py-3 rounded-pill fw-bold text-white shadow"
                 style={{ backgroundColor: primaryColor, border: 'none', minWidth: '220px' }}
-                onClick={() => navigate('/')} 
+                onClick={() => navigate('/login')} 
               >
                 Acceso Tutor Legal
               </button>
@@ -37,7 +37,7 @@ export const LandingPagePT = () => {
               <button 
                 className="btn btn-lg px-5 py-3 rounded-pill fw-bold shadow-sm bg-transparent border-4"
                 style={{ borderColor: primaryColor, color: primaryColor, minWidth: '220px' }}
-                onClick={() => navigate('/')} 
+                onClick={() => navigate('/login')} 
               >
                 Acceso Profesor
               </button>
