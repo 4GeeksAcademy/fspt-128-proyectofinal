@@ -1,3 +1,8 @@
+"""This module takes care of starting the API Server, Loading the DB and Adding the endpoints
+"""
+
+
+
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from flask_bcrypt import generate_password_hash, check_password_hash
 from sqlalchemy import select
@@ -6,7 +11,6 @@ from api.utils import generate_sitemap, APIException
 from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
 from flask import Flask, request, jsonify, url_for, Blueprint
 
-This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 
 
 api = Blueprint('api', __name__)
@@ -469,9 +473,9 @@ def registro_tutorlegal():
         db.session.commit()
 
          return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
-
-
-# ESTOS ENDPOINTS ESTAN COMENTADOS PORQUE AUN NO LOS HE COMPROBADO EN POSTMAN
+ 
+ 
+ #ESTOS ENDPOINTS ESTAN COMENTADOS PORQUE AUN NO LOS HE COMPROBADO EN POSTMAN
 # @api.route('calificaciones/crear', methods=['POST'])
 # @jwt_required()
 # def crear_calificaciones():
