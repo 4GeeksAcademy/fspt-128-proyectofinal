@@ -102,8 +102,7 @@ def perfil_superadmin():
 @jwt_required()
 def logout():
 
-
-         return jsonify({"msg": "Logout correcto"}), 200
+return jsonify({"msg": "Logout correcto"}), 200
 
 # EVENTOS#
 
