@@ -114,15 +114,16 @@ def logout():
 @api.route('/events', methods=['GET'])
 @jwt_required()
 def get_events():
+
     eventos = Eventos.query.all()
     return jsonify([e.serialize() for e in eventos]), 200
 
 @api.route('/events/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_event(id):
-    user = get_jwt_identity()
-    if user["rol_id"] != 2:
-        return jsonify({"msg": "Solo profesores"}), 403
+    admin_check = profe_required()
+    if admin_check: return admin_check
+
 
     evento = Eventos.query.get(id)
     if not evento:
@@ -138,9 +139,8 @@ def update_event(id):
 @api.route('/events/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_event(id):
-    user = get_jwt_identity()
-    if user["rol_id"] not in [1, 2]:
-        return jsonify({"msg": "Solo profesores"}), 403
+    admin_check = profe_required()
+    if admin_check: return admin_check
 
     evento = Eventos.query.get(id)
     if not evento:
@@ -343,6 +343,7 @@ def update_tutor(id):
 def crear_aula():
     admin_check = profe_required()
     if admin_check: return admin_check
+
 
     data = request.json    
     classroom = Aula(
