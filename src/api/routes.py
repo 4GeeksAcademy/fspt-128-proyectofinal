@@ -21,6 +21,12 @@ def admin_required():
         return jsonify({"msg": "Solo admin"}), 403
     return None
 
+def profe_required():
+   user_id = get_jwt_identity()
+   user= Profesor.query.get(user_id)
+   if not user or user.rol_id !=2:
+      return jsonify({"msg": "Solo profesor"}),403
+
 # SUPERADMIN REGISTRO, LOGIN Y GET#
 
 
@@ -111,6 +117,38 @@ def get_events():
    return jsonify([e.serialize() for e in eventos]), 200
 
 
+@api.route('events/create', methods=['POST'])
+@jwt_required()
+def crear_eventos():
+   existing_user_id= get_jwt_identity()
+   profesor= db.session.get(Profesor,int(existing_user_id))
+
+   if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+   
+   data= request.get_json()
+
+   if not data:
+      return jsonify({"msg":"Datos inválidos"}),404
+
+   nuevo_evento= Eventos(
+      evento_id=data.get("evento_id"),
+      nombre_evento= data.get("nombre_evento"),
+      localizacion= data.get("localizacion"),
+      fecha=data.get("fecha"),
+      descripcion=data.get("descripcion"),
+     
+   )
+   db.session.add(nuevo_evento)
+   db.session.commit()
+   return jsonify({"msg":"El evento ha sido agregado exitosamente"}),200
+   
+
+   
+   
+
+
+
 @api.route('/events/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_event(id):
@@ -124,6 +162,7 @@ def update_event(id):
    data = request.json
    evento.nombre_evento = data.get("nombre_evento", evento.nombre_evento)
    evento.localizacion = data.get("localizacion", evento.localizacion)
+   evento.tipo_de_evento = data.get("tipo_de_evento",evento.tipo_de_evento)
    
    db.session.commit()
    return jsonify(evento.serialize()), 200
@@ -391,7 +430,7 @@ def registro_tutorlegal():
 
 
 
-# ESTOS ENDPOINTS SON PARA CREAR, MODIFICAR Y ELIMINAR
+# ESTOS ENDPOINTS SON PARA CREAR, MODIFICAR Y ELIMINAR CALIFICACIONES
 @api.route('calificaciones/crear', methods=['POST'])
 @jwt_required()
 def crear_calificaciones():
@@ -472,7 +511,7 @@ def editar_calificaciones(calificacion_id):
 
     return jsonify(calificacion.serialize()),200
 
-#ELIMINAR TAREA
+#ELIMINAR calificacion
 @api.route('calificaciones/eliminar/<int:calificacion_id>', methods=['DELETE'])
 @jwt_required()
 def eliminar_calificaciones(calificacion_id):
@@ -504,9 +543,6 @@ def eliminar_calificaciones(calificacion_id):
      db.session.commit()
 
      return jsonify({"msg":"la calificación ha sido eliminada exitosamente"}),200
-
-
-
 
 
 

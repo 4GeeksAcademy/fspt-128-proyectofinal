@@ -234,11 +234,12 @@ class Eventos(db.Model):
     evento_id: Mapped[int] = mapped_column(primary_key=True)
     nombre_evento: Mapped[str] = mapped_column(String(80), nullable=True)
     localizacion: Mapped[str] = mapped_column(String(80), nullable=True)
-    tipo_de_evento: Mapped[tipo_evento] = mapped_column(
-        Enum(tipo_evento), nullable=False)
+    fecha: Mapped[str] = mapped_column(String(80),nullable=False)
+    tipo_de_evento: Mapped[tipo_evento] = mapped_column(Enum(tipo_evento), nullable=False)
+    descripcion:Mapped[str] = mapped_column(String(80),nullable=True)
     profesor_id: Mapped[int] = mapped_column(
         ForeignKey("profesor.id"),
-        nullable=True
+        nullable=False
     )
 
     profesor = relationship("Profesor", back_populates="eventos")
@@ -253,5 +254,7 @@ class Eventos(db.Model):
             "evento_id": self.evento_id,
             "nombre_evento": self.nombre_evento,
             "localizacion": self.localizacion,
+            "fecha":self.fecha,
             "tipo_de_evento": self.tipo_de_evento.value,
+            "descripcion":self.descripcion
         }
