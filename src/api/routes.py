@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, get_jwt
 from sqlalchemy import select
 from flask_cors import CORS
 from api.utils import generate_sitemap, APIException
@@ -106,9 +106,11 @@ def login_superadmin():
 @api.route('/perfil/superadmin', methods=['GET'])
 @jwt_required()
 def perfil_superadmin():
-    user = get_jwt_identity()
-    print(user)
-    existing_user = db.session.get(SuperAdmin, int(user))
+    super_admin_id = get_jwt_identity()
+    claims=get_jwt()
+    if claims["rol_id"] != 1:
+        return jsonify({"error": "not Authorized"}), 400
+    existing_user = db.session.get(SuperAdmin, int(super_admin_id))
     if not existing_user:
         return jsonify({"msg": "Usuario no encontrado"}), 400
     return jsonify(existing_user.serialize()), 200
@@ -187,7 +189,9 @@ def delete_event(id):
 
 
 @api.route('profesor/registro', methods=['POST'])
+@jwt_required()
 def registro_profesor():
+    super_admin_id = get_jwt_identity()
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
