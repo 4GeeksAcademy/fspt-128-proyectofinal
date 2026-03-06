@@ -108,8 +108,6 @@ def logout():
    return jsonify({"msg": "Logout correcto"}), 200
 
 # EVENTOS#
-
-
 @api.route('/events', methods=['GET'])
 @jwt_required()
 def get_events():
@@ -143,11 +141,6 @@ def crear_eventos():
    db.session.commit()
    return jsonify({"msg":"El evento ha sido agregado exitosamente"}),200
    
-
-   
-   
-
-
 
 @api.route('/events/<int:id>', methods=['PUT'])
 @jwt_required()
