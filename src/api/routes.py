@@ -227,7 +227,12 @@ def login_profesor():
     if existing_user is None:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
     else:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
@@ -408,7 +413,12 @@ def login_tutor_legal():
     if existing_user is None:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
     else:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
@@ -425,6 +435,7 @@ def perfil_tutorlegal():
 
 
 @api.route('tutorlegal/registro', methods=['POST'])
+@jwt_required()
 def registro_tutorlegal():
     data = request.get_json()
     name = data.get('name')
