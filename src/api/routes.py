@@ -115,7 +115,6 @@ def perfil_superadmin():
         return jsonify({"msg": "Usuario no encontrado"}), 400
     return jsonify(existing_user.serialize()), 200
 
-# CERRAR SESION
 
 
 @api.route('/logout', methods=['POST'])
@@ -148,11 +147,13 @@ def crear_eventos():
    if not data:
       return jsonify({"msg":"Datos inválidos"}),404
 
+   
    nuevo_evento= Eventos(
       evento_id=data.get("evento_id"),
       nombre_evento= data.get("nombre_evento"),
       localizacion= data.get("localizacion"),
       fecha=data.get("fecha"),
+      tipo_de_evento_id=tipo_de_evento(data.get("tipo_de_evento")),
       descripcion=data.get("descripcion"),
      
    )
@@ -171,7 +172,7 @@ def update_event(id):
    if not evento:
       return jsonify({"msg": "Evento no encontrado"}), 404
    
-   data = request.json
+   data = request.json()
    evento.nombre_evento = data.get("nombre_evento", evento.nombre_evento)
    evento.localizacion = data.get("localizacion", evento.localizacion)
    evento.tipo_de_evento = data.get("tipo_de_evento",evento.tipo_de_evento)
@@ -247,20 +248,20 @@ def registro_profesor():
 
 @api.route('profesor/login', methods=['POST'])
 def login_profesor():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
-    if not email or not password:
-        return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
-    existing_user = db.session.execute(select(Profesor).where(
-        Profesor.email == email)).scalar_one_or_none()
-    if existing_user is None:
-        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
-    if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
-        return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
-    else:
-        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+   data = request.get_json()
+   email = data.get('email')
+   password = data.get('password')
+   if not email or not password:
+      return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
+   existing_user = db.session.execute(select(Profesor).where(
+      Profesor.email == email)).scalar_one_or_none()
+   if existing_user is None:
+      return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+   if existing_user.check_password(password):
+      access_token = create_access_token(identity=str(existing_user.id))
+      return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
+   else:
+      return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
 
 
 @api.route('perfil/profesor', methods=['GET'])
