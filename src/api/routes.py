@@ -77,15 +77,14 @@ def login_superadmin():
         return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
     if existing_user.check_password(password):
-        access_token= create_access_token(identity=str(existing_user.id),
-        additional_claims={  
-            "rol_id": existing_user.rol_id,
-            "email": existing_user.email,
-            "nombre_colegio": existing_user.nombre_colegio
-        }
-
-       
-    )
+        access_token = create_access_token(identity=str(existing_user.id),
+            additional_claims={  
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "nombre_colegio": existing_user.nombre_colegio
+            }
+        )
+        return jsonify({'access_token': access_token}), 200
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
 @api.route('perfil/superadmin', methods=['GET'])
@@ -355,15 +354,18 @@ def update_tutor(id):
 #AULAS#
 @api.route('/crear/aula', methods=['POST'])
 @jwt_required()
-def crear_aula():
 
+def crear_aula():
+      
+    
     data = request.json    
     classroom = Aula(
         curso=data.get("curso"),
         clase=data.get("clase"),
         profesor_id=data.get("profesor_id"),
-        colegio_id=data.get("colegio_id")
+        colegio_id= data.get("SuperAdmin.id")
     )
+    print(classroom)
     db.session.add(classroom)
     db.session.commit()
     return jsonify(classroom.serialize()), 201
