@@ -21,7 +21,6 @@ def admin_required():
         return jsonify({"msg": "Solo admin"}), 403
     return None
 
-
 def profe_required():
     user_id = get_jwt_identity()
     user = Profesor.query.get(user_id)
@@ -44,12 +43,10 @@ def tutorLegal_required():
 def registro_superadmin():
     data = request.get_json()
     email = data.get('email')
-    # CHEQUEAR ESTO
-    rol_id = data.get('rol_id')
     password = data.get('password')
-    nombre_colegio = data.get('nombre_colegio')
+    nombre_colegio=data.get("nombre_colegio")
 
-    if not email or not password or not rol_id or not nombre_colegio:
+    if not email or not password:
         return jsonify({'msg': 'Por favor completar todos los campos'}), 400
 
     existing_user = db.session.execute(select(SuperAdmin).where(
@@ -60,7 +57,6 @@ def registro_superadmin():
 
     new_user = SuperAdmin(
         email=email,
-        rol_id=rol_id,
         password=password,
         nombre_colegio=nombre_colegio
     )
@@ -206,14 +202,14 @@ def registro_profesor():
         Profesor.email == email)).scalar_one_or_none()
 
     if existing_user:
-        return jsonify({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}), 409
+        return jsonify({'msg': 'Un perfil de profesor con este correo electrócnico ya existe'}), 409
 
     new_user = Profesor(email=email, rol_id=rol_id,
                         password=password, name=name, telephone=telephone)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+    return jsonify({'msg': 'El perfil de profesor ha sido creado satisfactoriamente'}), 200
 
 
 @api.route('profesor/login', methods=['POST'])
@@ -228,7 +224,12 @@ def login_profesor():
     if existing_user is None:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
     else:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
@@ -273,10 +274,7 @@ def delete_teacher(id):
     db.session.commit()
     return jsonify({"msg": "Profesor eliminado"}), 200
 
-# ESTUDIANTES#
-# ruta para crear estudiante
-
-
+# ESTUDIANTES
 @api.route('/students', methods=['POST'])
 @jwt_required()
 def create_student():
@@ -292,7 +290,6 @@ def create_student():
     db.session.add(student)
     db.session.commit()
     return jsonify(student.serialize()), 201
-
 
 @api.route('/students/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -312,7 +309,6 @@ def update_student(id):
 
     db.session.commit()
     return jsonify(student.serialize()), 200
-
 
 @api.route('/students/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -348,8 +344,6 @@ def create_tutor():
     db.session.commit()
     return jsonify(tutor.serialize()), 201
 
-# ruta para modificar
-
 
 @api.route('/tutors/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -365,10 +359,6 @@ def update_tutor(id):
         setattr(tutor, key, value)
         db.session.commit()
         return jsonify(tutor.serialize()), 200
-
-# AULAS#
-# ruta para crear aula
-
 
 @api.route('/tutors/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -418,7 +408,12 @@ def login_tutor_legal():
     if existing_user is None:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
     else:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
@@ -435,6 +430,7 @@ def perfil_tutorlegal():
 
 
 @api.route('tutorlegal/registro', methods=['POST'])
+@jwt_required()
 def registro_tutorlegal():
     data = request.get_json()
     name = data.get('name')
