@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 
-from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required, get_jwt
 from sqlalchemy import select
 from flask_cors import CORS
 from api.utils import generate_sitemap, APIException
@@ -19,18 +19,18 @@ def admin_required():
     if not user or user.rol_id != 1:
         return jsonify({"msg": "Solo admin"}), 403
     return None
-def profe_required():
-    user_id = get_jwt_identity()
-    user = Profesor.query.get(user_id)
-    if not user or user.rol_id != 2:
-        return jsonify({"msg": "Solo profesor"}), 403
-    return None
-def tutorLegal_required():
-    user_id = get_jwt_identity()
-    user = TutorLegal.query.get(user_id)
-    if not user or user.rol_id != 3:
-        return jsonify({"msg": "Solo tutor legal"}), 403
-    return None
+# def profe_required():
+#     user_id = get_jwt_identity()
+#     user = Profesor.query.get(user_id)
+#     if not user or user.rol_id != 2:
+#         return jsonify({"msg": "Solo profesor"}), 403
+#     return None
+# def tutorLegal_required():
+#     user_id = get_jwt_identity()
+#     user = TutorLegal.query.get(user_id)
+#     if not user or user.rol_id != 3:
+#         return jsonify({"msg": "Solo tutor legal"}), 403
+#     return None
 
 # SUPERADMIN REGISTRO, LOGIN Y GET#
 
@@ -39,11 +39,10 @@ def tutorLegal_required():
 def registro_superadmin():
     data = request.get_json()
     email = data.get('email')
-    rol_id = data.get('rol_id')
     password = data.get('password')
     nombre_colegio = data.get('nombre_colegio')
 
-    if not email or not password or not rol_id or not nombre_colegio:
+    if not email or not password  or not nombre_colegio:
         return jsonify({'msg': 'Por favor completar todos los campos'}), 400
 
     existing_user = db.session.execute(select(SuperAdmin).where(
@@ -54,7 +53,6 @@ def registro_superadmin():
 
     new_user = SuperAdmin(
         email=email,
-        rol_id=rol_id,
         password=password,
         nombre_colegio=nombre_colegio
     )
@@ -79,19 +77,15 @@ def login_superadmin():
         return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
     if existing_user.check_password(password):
-        identity_data = {
-            "id": existing_user.id,
+        access_token= create_access_token(identity=str(existing_user.id),
+        additional_claims={  
             "rol_id": existing_user.rol_id,
             "email": existing_user.email,
             "nombre_colegio": existing_user.nombre_colegio
         }
 
-        access_token = create_access_token(identity=identity_data)
-        return jsonify({
-            'msg': 'Inicio de sesión exitoso',
-            'token': access_token,
-            'existing_user': existing_user.serialize()
-        }), 200
+       
+    )
     return jsonify({'msg': 'Correo o contraseña incorrectos'}), 401
 
 @api.route('perfil/superadmin', methods=['GET'])
@@ -193,18 +187,22 @@ def registro_profesor():
         Profesor.email == email)).scalar_one_or_none()
 
     if existing_user:
-        return jsonify({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}), 409
+        return jsonify({'msg': 'Un perfil de profesor con este correo electrócnico ya existe'}), 409
 
     new_user = Profesor(email=email, rol_id=rol_id,
                         password=password, name=name, telephone=telephone)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+    return jsonify({'msg': 'El perfil de profesor ha sido creado satisfactoriamente'}), 200
 
 @api.route('/profesor/login',methods=['POST'])
 def login_profesor():
-    
+    profe_id= get_jwt_identity()
+    claims= get_jwt()
+    if claims["rol_id"] != 2:
+        return jsonify({"msg": "Solo profesores"}), 403
+   
     data= request.get_json()
     email= data.get('email')
     password= data.get('password')
@@ -212,10 +210,9 @@ def login_profesor():
     if not email or not password:
         return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
 
-    existing_user= db.session.execute(select(Profesor).where(Profesor.email == email)).scalar_one_or_none()
+    existing_user= db.session.get(Profesor, int(profe_id))
 
-    if existing_user is None:
-        return jsonify ({'msg':'El correo eletrócnico o contraseña son incorrectos'}),401
+    
 
     if existing_user.check_password(password):
         access_token = create_access_token(
@@ -224,7 +221,6 @@ def login_profesor():
                 "rol_id": existing_user.rol_id,
                 "email": existing_user.email,
                 "aula_id": Aula.aula_id,
-                "curso": Aula.curso,
                 "clase": Aula.clase
             }
         )
@@ -360,9 +356,6 @@ def update_tutor(id):
 @api.route('/crear/aula', methods=['POST'])
 @jwt_required()
 def crear_aula():
-    admin_check = profe_required()
-    if admin_check: return admin_check
-
 
     data = request.json    
     classroom = Aula(
