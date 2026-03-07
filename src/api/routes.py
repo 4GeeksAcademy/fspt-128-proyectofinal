@@ -43,12 +43,10 @@ def tutorLegal_required():
 def registro_superadmin():
     data = request.get_json()
     email = data.get('email')
-    # CHEQUEAR ESTO
-    rol_id = data.get('rol_id')
     password = data.get('password')
-    nombre_colegio = data.get('nombre_colegio')
+    nombre_colegio=data.get("nombre_colegio")
 
-    if not email or not password or not rol_id or not nombre_colegio:
+    if not email or not password:
         return jsonify({'msg': 'Por favor completar todos los campos'}), 400
 
     existing_user = db.session.execute(select(SuperAdmin).where(
@@ -59,7 +57,6 @@ def registro_superadmin():
 
     new_user = SuperAdmin(
         email=email,
-        rol_id=rol_id,
         password=password,
         nombre_colegio=nombre_colegio
     )
@@ -205,14 +202,14 @@ def registro_profesor():
         Profesor.email == email)).scalar_one_or_none()
 
     if existing_user:
-        return jsonify({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}), 409
+        return jsonify({'msg': 'Un perfil de profesor con este correo electrócnico ya existe'}), 409
 
     new_user = Profesor(email=email, rol_id=rol_id,
                         password=password, name=name, telephone=telephone)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+    return jsonify({'msg': 'El perfil de profesor ha sido creado satisfactoriamente'}), 200
 
 
 @api.route('profesor/login', methods=['POST'])
@@ -346,8 +343,6 @@ def create_tutor():
     db.session.add(tutor)
     db.session.commit()
     return jsonify(tutor.serialize()), 201
-
-# ruta para modificar
 
 
 @api.route('/tutors/<int:id>', methods=['PUT'])
