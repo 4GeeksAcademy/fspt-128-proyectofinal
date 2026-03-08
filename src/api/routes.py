@@ -122,14 +122,14 @@ def logout():
 
 
 # EVENTOS
-@api.route('/events', methods=['GET'])
+@api.route('/eventos', methods=['GET'])
 @jwt_required()
-def get_events():
+def get_eventos():
     eventos = Eventos.query.all()
     return jsonify([e.serialize() for e in eventos]), 200
 
 
-@api.route('events/create', methods=['POST'])
+@api.route('eventos/crear', methods=['POST'])
 @jwt_required()
 def crear_eventos():
    existing_user_id= get_jwt_identity()
@@ -159,9 +159,9 @@ def crear_eventos():
    return jsonify({"msg":"El evento ha sido agregado exitosamente"}),200
    
 
-@api.route('/events/<int:id>', methods=['PUT'])
+@api.route('/eventos/modificar/<int:id>', methods=['PUT'])
 @jwt_required()
-def update_event(id):
+def modificar_eventos(id):
    existing_user_id= get_jwt_identity()
    profesor= db.session.get(Profesor,int(existing_user_id))
 
@@ -191,9 +191,9 @@ def update_event(id):
    return jsonify(evento.serialize()), 200
 
 
-@api.route('/events/<int:id>', methods=['DELETE'])
+@api.route('/eventos/eliminar/<int:id>', methods=['DELETE'])
 @jwt_required()
-def delete_event(id):
+def eliminar_evento(id):
     existing_user_id= get_jwt_identity()
     profesor= db.session.get(Profesor,int(existing_user_id))
 
@@ -599,7 +599,7 @@ def eliminar_calificaciones(calificacion_id):
      estudiante= db.session.get(Estudiantes,calificacion.estudiante_id)
 
      if not estudiante:
-      return jsonify({"msg":"Estuante no encontrado"})
+      return jsonify({"msg":"Estudiante no encontrado"})
      
      aulas_profesor= [aula.aula_id for aula in profesor.aulas]
      aula_estudiante = estudiante.aula_id
