@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from sqlalchemy import select
 from flask_cors import CORS
 from api.utils import generate_sitemap, APIException
-from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin, Calificaciones
+from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin, Calificaciones,tipo_evento
 from flask import Flask, request, jsonify, url_for, Blueprint
 
 
@@ -20,7 +20,6 @@ def admin_required():
     if not user or user.rol_id != 1:
         return jsonify({"msg": "Solo admin"}), 403
     return None
-
 
 def profe_required():
     user_id = get_jwt_identity()
@@ -44,12 +43,10 @@ def tutorLegal_required():
 def registro_superadmin():
     data = request.get_json()
     email = data.get('email')
-    # CHEQUEAR ESTO
-    rol_id = data.get('rol_id')
     password = data.get('password')
-    nombre_colegio = data.get('nombre_colegio')
+    nombre_colegio=data.get("nombre_colegio")
 
-    if not email or not password or not rol_id or not nombre_colegio:
+    if not email or not password:
         return jsonify({'msg': 'Por favor completar todos los campos'}), 400
 
     existing_user = db.session.execute(select(SuperAdmin).where(
@@ -60,7 +57,6 @@ def registro_superadmin():
 
     new_user = SuperAdmin(
         email=email,
-        rol_id=rol_id,
         password=password,
         nombre_colegio=nombre_colegio
     )
@@ -148,15 +144,16 @@ def crear_eventos():
       return jsonify({"msg":"Datos inválidos"}),404
 
    
+   
    nuevo_evento= Eventos(
-      evento_id=data.get("evento_id"),
       nombre_evento= data.get("nombre_evento"),
       localizacion= data.get("localizacion"),
       fecha=data.get("fecha"),
-      tipo_de_evento_id=tipo_de_evento(data.get("tipo_de_evento")),
+      hora=data.get("hora"),
+      tipo_de_evento=tipo_evento(data.get("tipo_de_evento")),
       descripcion=data.get("descripcion"),
-     
-   )
+      profesor_id= existing_user_id
+      )
    db.session.add(nuevo_evento)
    db.session.commit()
    return jsonify({"msg":"El evento ha sido agregado exitosamente"}),200
@@ -165,17 +162,30 @@ def crear_eventos():
 @api.route('/events/<int:id>', methods=['PUT'])
 @jwt_required()
 def update_event(id):
-   user = get_jwt_identity()
-   if user["rol_id"] != 2:
-      return jsonify({"msg": "Solo profesores"}), 403
+   existing_user_id= get_jwt_identity()
+   profesor= db.session.get(Profesor,int(existing_user_id))
+
+   if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+   
+   data= request.get_json()
+
+   if not data:
+      return jsonify({"msg":"Datos inválidos"}),404
+
    evento = Eventos.query.get(id)
    if not evento:
       return jsonify({"msg": "Evento no encontrado"}), 404
    
-   data = request.json()
+   data = request.get_json()
+
+
    evento.nombre_evento = data.get("nombre_evento", evento.nombre_evento)
    evento.localizacion = data.get("localizacion", evento.localizacion)
+   evento.fecha = data.get("fecha", evento.fecha)
+   evento.hora = data.get("hora",evento.hora)
    evento.tipo_de_evento = data.get("tipo_de_evento",evento.tipo_de_evento)
+   evento.descripcion = data.get("descripcion", evento.descripcion)
    
    db.session.commit()
    return jsonify(evento.serialize()), 200
@@ -184,9 +194,11 @@ def update_event(id):
 @api.route('/events/<int:id>', methods=['DELETE'])
 @jwt_required()
 def delete_event(id):
-    user = get_jwt_identity()
-    if user["rol_id"] not in [1, 2]:
-        return jsonify({"msg": "Solo profesores"}), 403
+    existing_user_id= get_jwt_identity()
+    profesor= db.session.get(Profesor,int(existing_user_id))
+
+    if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
     evento = Eventos.query.get(id)
     if not evento:
         return jsonify({"msg": "Evento no encontrado"}), 404
@@ -236,32 +248,37 @@ def registro_profesor():
         Profesor.email == email)).scalar_one_or_none()
 
     if existing_user:
-        return jsonify({'msg': 'Un perfil de administrador con este correo electrócnico ya existe'}), 409
+        return jsonify({'msg': 'Un perfil de profesor con este correo electrócnico ya existe'}), 409
 
     new_user = Profesor(email=email, rol_id=rol_id,
                         password=password, name=name, telephone=telephone)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-    return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
+    return jsonify({'msg': 'El perfil de profesor ha sido creado satisfactoriamente'}), 200
 
 
 @api.route('profesor/login', methods=['POST'])
 def login_profesor():
-   data = request.get_json()
-   email = data.get('email')
-   password = data.get('password')
-   if not email or not password:
-      return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
-   existing_user = db.session.execute(select(Profesor).where(
-      Profesor.email == email)).scalar_one_or_none()
-   if existing_user is None:
-      return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
-   if existing_user.check_password(password):
-      access_token = create_access_token(identity=str(existing_user.id))
-      return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
-   else:
-      return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    if not email or not password:
+        return jsonify({'msg': 'El correo electrónico y contraseña son requeridos'}), 400
+    existing_user = db.session.execute(select(Profesor).where(
+        Profesor.email == email)).scalar_one_or_none()
+    if existing_user is None:
+        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
+    if existing_user.check_password(password):
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
+        return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
+    else:
+        return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
 
 
 @api.route('perfil/profesor', methods=['GET'])
@@ -303,10 +320,7 @@ def delete_teacher(id):
     db.session.commit()
     return jsonify({"msg": "Profesor eliminado"}), 200
 
-# ESTUDIANTES#
-# ruta para crear estudiante
-
-
+# ESTUDIANTES
 @api.route('/students', methods=['POST'])
 @jwt_required()
 def create_student():
@@ -322,7 +336,6 @@ def create_student():
     db.session.add(student)
     db.session.commit()
     return jsonify(student.serialize()), 201
-
 
 @api.route('/students/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -342,7 +355,6 @@ def update_student(id):
 
     db.session.commit()
     return jsonify(student.serialize()), 200
-
 
 @api.route('/students/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -378,8 +390,6 @@ def create_tutor():
     db.session.commit()
     return jsonify(tutor.serialize()), 201
 
-# ruta para modificar
-
 
 @api.route('/tutors/<int:id>', methods=['PUT'])
 @jwt_required()
@@ -395,10 +405,6 @@ def update_tutor(id):
         setattr(tutor, key, value)
         db.session.commit()
         return jsonify(tutor.serialize()), 200
-
-# AULAS#
-# ruta para crear aula
-
 
 @api.route('/tutors/<int:id>', methods=['DELETE'])
 @jwt_required()
@@ -448,7 +454,12 @@ def login_tutor_legal():
     if existing_user is None:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
     if existing_user.check_password(password):
-        access_token = create_access_token(identity=str(existing_user.id))
+        access_token = create_access_token(identity=str(existing_user.id), additional_claims={
+                "rol_id": existing_user.rol_id,
+                "email": existing_user.email,
+                "name": existing_user.name,
+                "telephone": existing_user.telephone
+            })
         return jsonify({'msg': 'Inicio de sesión exitoso', 'token': access_token, 'existing_user': existing_user.serialize()}), 200
     else:
         return jsonify({'msg': 'El correo eletrócnico o contraseña son incorrectos'}), 401
@@ -465,6 +476,7 @@ def perfil_tutorlegal():
 
 
 @api.route('tutorlegal/registro', methods=['POST'])
+@jwt_required()
 def registro_tutorlegal():
     data = request.get_json()
     name = data.get('name')

@@ -232,15 +232,13 @@ class Eventos(db.Model):
     __tablename__ = "eventos"
 
     evento_id: Mapped[int] = mapped_column(primary_key=True)
-    nombre_evento: Mapped[str] = mapped_column(String(80), nullable=True)
+    nombre_evento: Mapped[str] = mapped_column(String(80), nullable=False)
     localizacion: Mapped[str] = mapped_column(String(80), nullable=True)
-    fecha: Mapped[str] = mapped_column(String(80),nullable=False)
-    tipo_de_evento: Mapped[tipo_evento] = mapped_column(Enum(tipo_evento), nullable=False)
-    descripcion:Mapped[str] = mapped_column(String(80),nullable=True)
-    profesor_id: Mapped[int] = mapped_column(
-        ForeignKey("profesor.id"),
-        nullable=False
-    )
+    fecha: Mapped[str] = mapped_column(String(80),nullable=False),
+    hora:Mapped[str]= mapped_column(String(80),nullable=True)
+    tipo_de_evento: Mapped[tipo_evento] = mapped_column(Enum(tipo_evento), nullable=True)
+    descripcion:Mapped[str] = mapped_column(String(80),nullable=False)
+    profesor_id: Mapped[int] = mapped_column(ForeignKey("profesor.id"),nullable=False)
 
     profesor = relationship("Profesor", back_populates="eventos")
     alumnos = relationship(
@@ -255,6 +253,7 @@ class Eventos(db.Model):
             "nombre_evento": self.nombre_evento,
             "localizacion": self.localizacion,
             "fecha":self.fecha,
+            "hora":self.hora,
             "tipo_de_evento": self.tipo_de_evento.value,
             "descripcion":self.descripcion
         }
