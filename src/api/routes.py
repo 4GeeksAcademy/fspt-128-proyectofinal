@@ -6,7 +6,7 @@ from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_requir
 from sqlalchemy import select
 from flask_cors import CORS
 from api.utils import generate_sitemap, APIException
-from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin
+from api.models import db, Profesor, TutorLegal, Estudiantes, Aula, Eventos, SuperAdmin, Calificaciones,tipo_evento
 from flask import Flask, request, jsonify, url_for, Blueprint
 
 
@@ -111,7 +111,6 @@ def perfil_superadmin():
         return jsonify({"msg": "Usuario no encontrado"}), 400
     return jsonify(existing_user.serialize()), 200
 
-# CERRAR SESION
 
 
 @api.route('/logout', methods=['POST'])
@@ -119,40 +118,87 @@ def perfil_superadmin():
 def logout():
     return jsonify({"msg": "Logout correcto"}), 200
 
+
+
+
 # EVENTOS
-
-
-@api.route('/events', methods=['GET'])
+@api.route('/eventos', methods=['GET'])
 @jwt_required()
-def get_events():
+def get_eventos():
     eventos = Eventos.query.all()
     return jsonify([e.serialize() for e in eventos]), 200
 
 
-@api.route('/events/<int:id>', methods=['PUT'])
+@api.route('eventos/crear', methods=['POST'])
 @jwt_required()
-def update_event(id):
-    user = get_jwt_identity()
-    if user["rol_id"] != 2:
-        return jsonify({"msg": "Solo profesores"}), 403
-    evento = Eventos.query.get(id)
-    if not evento:
-        return jsonify({"msg": "Evento no encontrado"}), 404
+def crear_eventos():
+   existing_user_id= get_jwt_identity()
+   profesor= db.session.get(Profesor,int(existing_user_id))
 
-    data = request.json
-    evento.nombre_evento = data.get("nombre_evento", evento.nombre_evento)
-    evento.localizacion = data.get("localizacion", evento.localizacion)
+   if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+   
+   data= request.get_json()
 
-    db.session.commit()
-    return jsonify(evento.serialize()), 200
+   if not data:
+      return jsonify({"msg":"Datos inválidos"}),404
 
+   
+   
+   nuevo_evento= Eventos(
+      nombre_evento= data.get("nombre_evento"),
+      localizacion= data.get("localizacion"),
+      fecha=data.get("fecha"),
+      hora=data.get("hora"),
+      tipo_de_evento=tipo_evento(data.get("tipo_de_evento")),
+      descripcion=data.get("descripcion"),
+      profesor_id= existing_user_id
+      )
+   db.session.add(nuevo_evento)
+   db.session.commit()
+   return jsonify({"msg":"El evento ha sido agregado exitosamente"}),200
+   
 
-@api.route('/events/<int:id>', methods=['DELETE'])
+@api.route('/eventos/modificar/<int:id>', methods=['PUT'])
 @jwt_required()
-def delete_event(id):
-    user = get_jwt_identity()
-    if user["rol_id"] not in [1, 2]:
-        return jsonify({"msg": "Solo profesores"}), 403
+def modificar_eventos(id):
+   existing_user_id= get_jwt_identity()
+   profesor= db.session.get(Profesor,int(existing_user_id))
+
+   if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+   
+   data= request.get_json()
+
+   if not data:
+      return jsonify({"msg":"Datos inválidos"}),404
+
+   evento = Eventos.query.get(id)
+   if not evento:
+      return jsonify({"msg": "Evento no encontrado"}), 404
+   
+   data = request.get_json()
+
+
+   evento.nombre_evento = data.get("nombre_evento", evento.nombre_evento)
+   evento.localizacion = data.get("localizacion", evento.localizacion)
+   evento.fecha = data.get("fecha", evento.fecha)
+   evento.hora = data.get("hora",evento.hora)
+   evento.tipo_de_evento = data.get("tipo_de_evento",evento.tipo_de_evento)
+   evento.descripcion = data.get("descripcion", evento.descripcion)
+   
+   db.session.commit()
+   return jsonify(evento.serialize()), 200
+
+
+@api.route('/eventos/eliminar/<int:id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_evento(id):
+    existing_user_id= get_jwt_identity()
+    profesor= db.session.get(Profesor,int(existing_user_id))
+
+    if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
     evento = Eventos.query.get(id)
     if not evento:
         return jsonify({"msg": "Evento no encontrado"}), 404
@@ -452,87 +498,128 @@ def registro_tutorlegal():
     return jsonify({'msg': 'El perfil de administrador ha sido creado satisfactoriamente'}), 200
 
 
-# ESTOS ENDPOINTS ESTAN COMENTADOS PORQUE AUN NO LOS HE COMPROBADO EN POSTMAN
-# @api.route('calificaciones/crear', methods=['POST'])
-# @jwt_required()
-# def crear_calificaciones():
-#     existing_user_id= get_jwt_identity()
-#     existing_user= db.session.get(Profesor,int(existing_user_id))
 
-#     if not existing_user:
-#         return jsonify({"msg":"Usuario no autorizado"}),401
+# ESTOS ENDPOINTS SON PARA CREAR, MODIFICAR Y ELIMINAR CALIFICACIONES
+@api.route('calificaciones/crear', methods=['POST'])
+@jwt_required()
+def crear_calificaciones():
+    existing_user_id= get_jwt_identity()
+    profesor= db.session.get(Profesor,int(existing_user_id))
 
-#     data= request.get_json()
+    if not profesor:
+        return jsonify({"msg":"Usuario no autorizado"}),401
 
-#     if not data:
-#         return jsonify({"msg":"Datos Inválidos"}),400
+    data= request.get_json()
 
-#     estudiante_id= data.get("estudiante_id")
-#     estudiante= db.session.get(Estudiantes,estudiante_id)
+    if not data:
+        return jsonify({"msg":"Datos Inválidos"}),400
 
-#     if not estudiante:
-#         return jsonify({"msg": "Estudiante no encontrado"}), 404
+    estudiante_id= data.get("estudiante_id")
+    estudiante= db.session.get(Estudiantes,estudiante_id)
 
-#     if estudiante.profesor_id != existing_user_id:
-#         return jsonify ({"msg": "Este estudiante no es tuyo, no puedes modificarlo"}), 404
+    if not estudiante:
+        return jsonify({"msg": "Estudiante no encontrado"}), 404
+   
+    aulas_profesor= [aula.aula_id for aula in profesor.aulas]
+    aula_estudiante = estudiante.aula_id
 
+    if aula_estudiante not in aulas_profesor:
+       return jsonify({"msg": "Este estudiante no está es ninguna de tus aulas"}), 403
 
-#     nueva_calificacion= Calificaciones(
-#         calificacion= data.get("calificacion"),
-#         estudiante_id=data.get("estudiante_id"),
-#         asignatura_id=data.get("asignatura_id")
-#     )
+    nueva_calificacion= Calificaciones(
+        calificacion= data.get("calificacion"),
+        estudiante_id=data.get("estudiante_id"),
+        asignatura_id=data.get("asignatura_id")
+    )
 
-#     db.session.add(nueva_calificacion)
-#     db.session.commit()
+    db.session.add(nueva_calificacion)
+    db.session.commit()
 
-#     return jsonify(nueva_calificacion.serialize()),201
-
-
-# @api.route('calificaciones/editar/<int:calificacion_id>', methods=['PUT'])
-# @jwt_required()
-# def editar_calificaciones(calificacion_id):
-#     existing_user_id= get_jwt_identity()
-#     existing_user = db.session.get(Calificaciones,int(existing_user_id))
-#     if not existing_user:
-#         return jsonify({'msg':'Usuario no autorizado'}),400
-
-#     calificacion= db.session.get(Calificaciones, calificacion_id)
-
-#     if not calificacion:
-#         return jsonify({'msg':'Calificaion no encontrada'}),404
-
-#     data= request.get_json()
-
-#     if "calificacion" in data:
-#         calificacion.calificacion_id= data["calificacion"]
-
-#     if "estudiante_id" in data:
-#         calificacion.estudiante_id=data["estudiante_id"]
-
-#     if "asignatura_id" in data:
-#         calificacion.asignatura_id=data["asignatura_id"]
-
-#     db.session.commit()
-
-#     return jsonify(calificacion.serialize()),200
+    return jsonify(nueva_calificacion.serialize()),201
 
 
-# @api.route('calificaciones/eliminar/<int:calificacion_id>', methods=['DELETE'])
-# @jwt_required()
-# def eliminar_calificaciones(calificacion_id):
-#      existing_user_id= get_jwt_identity()
-#      existing_user = db.session.get(Calificaciones,int(existing_user_id))
 
-#      if not existing_user:
-#         return jsonify({'msg':'Usuario no autorizado'}),400
+#EDITAR TAREA
+@api.route('calificaciones/editar/<int:calificacion_id>', methods=['PUT'])
+@jwt_required()
+def editar_calificaciones(calificacion_id):
+    existing_user_id= get_jwt_identity()
+    profesor= db.session.get(Profesor,int(existing_user_id))
+    if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
 
-#      calificacion= db.session.get(Calificaciones, calificacion_id)
+    calificacion= db.session.get(Calificaciones, calificacion_id)
 
-#      if not calificacion:
-#         return jsonify({'msg':'Calificaion no encontrada'}),404
+    if not calificacion:
+        return jsonify({'msg':'Calificaion no encontrada'}),404
+    
+   
+    estudiante= db.session.get(Estudiantes,calificacion.estudiante_id)
 
-#      db.session.delete(calificacion)
-#      db.session.commit()
+    if not estudiante:
+      return jsonify({"msg":"Estuante no encontrado"})
+     
+    aulas_profesor= [aula.aula_id for aula in profesor.aulas]
+    aula_estudiante = estudiante.aula_id
 
-#      return jsonify({"msg":"la calificación ha sido eliminada exitosamente"}),200
+    if aula_estudiante not in aulas_profesor:
+       return jsonify({"msg": "No puedes editar calificaciones de estudiantes de otras aulas"}), 403
+
+    data= request.get_json()
+
+    if "calificacion" in data:
+        calificacion.calificacion_id= data["calificacion"]
+
+    if "estudiante_id" in data:
+        calificacion.estudiante_id=data["estudiante_id"]
+
+    if "asignatura_id" in data:
+        calificacion.asignatura_id=data["asignatura_id"]
+
+    db.session.commit()
+
+    return jsonify(calificacion.serialize()),200
+
+#ELIMINAR calificacion
+@api.route('calificaciones/eliminar/<int:calificacion_id>', methods=['DELETE'])
+@jwt_required()
+def eliminar_calificaciones(calificacion_id):
+     existing_user_id= get_jwt_identity()
+     profesor= db.session.get(Profesor,int(existing_user_id))
+
+
+     if not profesor:
+        return jsonify({'msg':'Usuario no autorizado'}),400
+
+     calificacion= db.session.get(Calificaciones, calificacion_id)
+
+     if not calificacion:
+        return jsonify({'msg':'Calificaion no encontrada'}),404
+     
+     estudiante= db.session.get(Estudiantes,calificacion.estudiante_id)
+
+     if not estudiante:
+      return jsonify({"msg":"Estudiante no encontrado"})
+     
+     aulas_profesor= [aula.aula_id for aula in profesor.aulas]
+     aula_estudiante = estudiante.aula_id
+
+     if aula_estudiante not in aulas_profesor:
+       return jsonify({"msg": "No puedes editar calificaciones de estudiantes de otras aulas"}), 403
+
+
+     db.session.delete(calificacion)
+     db.session.commit()
+
+     return jsonify({"msg":"la calificación ha sido eliminada exitosamente"}),200
+
+
+
+
+
+
+
+
+
+
+
